@@ -264,7 +264,7 @@ export default function StaffDashboard() {
                           </div>
                         )}
 
-                        {task.status === 'Completed' && (
+                        {['Completed', 'Closed'].includes(task.status) && (
                           <div className="flex items-center gap-2 text-emerald-600 font-bold text-[10px] bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-xl border border-emerald-100 dark:border-emerald-800 uppercase tracking-widest transition-colors">
                             <CheckCircle size={16} />
                             Verified & Closed

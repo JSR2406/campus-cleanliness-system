@@ -11,14 +11,14 @@ interface Complaint {
 }
 
 const REGIONS = [
-  { id: 'Main Building', label: 'Main Building', x: 45, y: 30 },
-  { id: 'Hostel Block A', label: 'Hostel Block A', x: 20, y: 60 },
-  { id: 'Hostel Block B', label: 'Hostel Block B', x: 25, y: 75 },
-  { id: 'Library', label: 'Library', x: 65, y: 25 },
-  { id: 'Cafeteria', label: 'Cafeteria', x: 55, y: 55 },
-  { id: 'Sports Complex', label: 'Sports Complex', x: 80, y: 70 },
-  { id: 'Labs Block', label: 'Labs Block', x: 70, y: 45 },
-  { id: 'Parking Lot', label: 'Parking Lot', x: 15, y: 40 },
+  { id: 'Main Building', label: 'Main Building', x: 35, y: 65 },
+  { id: 'Junior College', label: 'Junior College', x: 60, y: 85 },
+  { id: 'Architecture Block', label: 'Architecture Block', x: 85, y: 30 },
+  { id: 'Pharmacy Block', label: 'Pharmacy Block', x: 75, y: 15 },
+  { id: 'Cafeteria', label: 'Cafeteria', x: 65, y: 45 },
+  { id: 'Sports Complex', label: 'Sports Complex', x: 75, y: 55 },
+  { id: 'Hostel Area', label: 'Hostel Area', x: 10, y: 80 },
+  { id: 'Parking Lot', label: 'Parking Lot', x: 20, y: 30 },
 ];
 
 interface CampusMapProps {
@@ -69,9 +69,9 @@ export default function CampusMap({ complaints, onRegionClick, selectedRegion }:
     <div className="relative w-full aspect-[16/9] md:aspect-[21/9] rounded-2xl overflow-hidden shadow-2xl mb-8 group bg-slate-900">
       {/* Background Image */}
       <img
-        src="https://images.unsplash.com/photo-1562774053-701939374585?w=1200"
-        alt="Campus Map Aerial"
-        className="absolute inset-0 w-full h-full object-cover opacity-60"
+        src="/src/assets/campus-map.png"
+        alt="Campus Map Schematic"
+        className="absolute inset-0 w-full h-full object-cover opacity-80"
       />
 
       {/* Overlay Title */}

@@ -6,14 +6,14 @@ import { Assignment } from './models/Assignment.js';
 import { Proof } from './models/Proof.js';
 import { Feedback } from './models/Feedback.js';
 
-const REGIONS = ['Main Building', 'Hostel Block A', 'Hostel Block B', 'Library', 'Cafeteria', 'Sports Complex', 'Labs Block', 'Parking Lot'];
+const REGIONS = ['Main Building', 'Junior College', 'Architecture Block', 'Pharmacy Block', 'Cafeteria', 'Sports Complex', 'Hostel Area', 'Parking Lot'];
 const CATEGORIES = ['Cleaning', 'Electrical', 'Structural', 'Plumbing', 'IT/Network', 'Safety Hazard', 'Pest Control', 'Gardening', 'Fire Safety', 'Other'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 
 async function seed() {
   try {
     console.log('Connecting to database and syncing...');
-    await sequelize.sync({ alter: true });
+    await sequelize.sync({ force: true });
 
     console.log('Clearing existing data (except users)...');
     await Feedback.destroy({ where: {} });

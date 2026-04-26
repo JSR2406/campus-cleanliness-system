@@ -387,6 +387,53 @@ export default function AnalyticsPage() {
             )}
           </div>
         )}
+
+        {/* Staff Performance Leaderboard */}
+        {data.staffLeaderboard && data.staffLeaderboard.length > 0 && (
+          <motion.div variants={itemVariants} className="mt-10 card p-8 md:p-10 shadow-2xl shadow-slate-200/50 dark:shadow-none mb-20">
+            <div className="flex items-center justify-between mb-10">
+              <div>
+                <h3 className="text-xl font-black text-ink tracking-tight">Staff Performance Leaderboard</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Top performers by resolution & rating</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                <TrendingUp size={20} />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {data.staffLeaderboard.map((staff: any, idx: number) => (
+                <div key={staff.id} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100/50 dark:border-slate-800/50 hover:bg-white dark:hover:bg-slate-800 transition-all group">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${
+                    idx === 0 ? 'bg-amber-100 text-amber-600 shadow-lg shadow-amber-500/20' : 
+                    idx === 1 ? 'bg-slate-200 text-slate-600 shadow-lg shadow-slate-400/20' : 
+                    idx === 2 ? 'bg-orange-100 text-orange-600 shadow-lg shadow-orange-500/20' : 
+                    'bg-slate-50 dark:bg-slate-800 text-slate-400'
+                  }`}>
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-black text-ink">{staff.name}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Staff Member</p>
+                  </div>
+                  <div className="text-right flex items-center gap-6">
+                    <div>
+                      <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Resolved</p>
+                      <p className="text-sm font-black text-emerald-500">{staff.resolved} Tasks</p>
+                    </div>
+                    <div className="w-16">
+                      <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Rating</p>
+                      <div className="flex items-center gap-1">
+                        <Sparkles size={10} className="text-amber-500" />
+                        <p className="text-sm font-black text-amber-500">{staff.avgRating}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </motion.div>
     </div>
   );

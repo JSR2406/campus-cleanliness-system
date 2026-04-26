@@ -208,7 +208,7 @@ export const submitFeedback = async (req: AuthRequest, res: Response) => {
     const user_id = req.user!.id;
 
     const complaint: any = await Complaint.findOne({
-      where: { id: complaint_id, user_id, status: 'Closed' },
+      where: { id: complaint_id, user_id, status: ['Completed', 'Closed'] },
       include: [{ model: Assignment }]
     });
 
@@ -226,6 +226,9 @@ export const submitFeedback = async (req: AuthRequest, res: Response) => {
       rating,
       comment
     });
+
+    // Mark as Closed after feedback
+    await complaint.update({ status: 'Closed' });
 
     res.status(201).json(feedback);
   } catch (error: any) {
@@ -250,7 +253,10 @@ export const getStaffFeedback = async (req: AuthRequest, res: Response) => {
 export const getAnalytics = async (req: AuthRequest, res: Response) => {
   try {
     const complaints = await Complaint.findAll();
-    const feedbacks = await Feedback.findAll();
+    const feedbacks = await Feedback.findAll({
+      include: [{ model: User, as: 'staff', attributes: ['name', 'id'] }]
+    });
+    const staffList = await User.findAll({ where: { role: 'staff' }, attributes: ['id', 'name'] });
     
     const byRegion: any = {};
     const byCategory: any = {};
@@ -296,6 +302,34 @@ export const getAnalytics = async (req: AuthRequest, res: Response) => {
       value: byCategory[cat]
     }));
 
+    // Staff Leaderboard
+    const staffStatsMap: any = {};
+    staffList.forEach((s: any) => {
+      staffStatsMap[s.id] = { id: s.id, name: s.name, resolved: 0, totalRating: 0, feedbackCount: 0 };
+    });
+
+    feedbacks.forEach((f: any) => {
+      if (staffStatsMap[f.staff_id]) {
+        staffStatsMap[f.staff_id].totalRating += f.rating;
+        staffStatsMap[f.staff_id].feedbackCount++;
+      }
+    });
+
+    // Count resolved by staff
+    const assignments = await Assignment.findAll({ include: [{ model: Complaint }] });
+    assignments.forEach((a: any) => {
+      if (a.Complaint && ['Completed', 'Closed'].includes(a.Complaint.status)) {
+        if (staffStatsMap[a.staff_id]) {
+          staffStatsMap[a.staff_id].resolved++;
+        }
+      }
+    });
+
+    const staffLeaderboard = Object.values(staffStatsMap).map((s: any) => ({
+      ...s,
+      avgRating: s.feedbackCount > 0 ? (s.totalRating / s.feedbackCount).toFixed(1) : "0.0"
+    })).sort((a: any, b: any) => b.resolved - a.resolved).slice(0, 5);
+
     res.json({
       total: complaints.length,
       completed: completedCount,
@@ -308,7 +342,8 @@ export const getAnalytics = async (req: AuthRequest, res: Response) => {
       avgSLA_hours: avgSLA,
       avgRating,
       totalFeedback: feedbacks.length,
-      heatmapData
+      heatmapData,
+      staffLeaderboard
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message });

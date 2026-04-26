@@ -254,7 +254,7 @@ export default function AdminDashboard() {
           {[
             { label: 'Pending Reports', value: complaints.filter(c => c.status === 'Pending').length, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
             { label: 'In Progress', value: complaints.filter(c => ['Assigned', 'In Progress'].includes(c.status)).length, icon: AlertCircle, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-            { label: 'Resolved', value: complaints.filter(c => c.status === 'Completed').length, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+            { label: 'Resolved', value: complaints.filter(c => ['Completed', 'Closed'].includes(c.status)).length, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
           ].map((stat, idx) => (
             <motion.div
               key={stat.label}
@@ -289,11 +289,14 @@ export default function AdminDashboard() {
                   className="px-4 py-2.5 bg-card-bg border border-slate-100 dark:border-slate-800 rounded-xl text-xs font-medium outline-none transition-all shadow-sm"
                 >
                   <option value="All">All Regions</option>
-                  <option value="Academic Block">Academic Block</option>
-                  <option value="Hostel Area">Hostel Area</option>
+                  <option value="Main Building">Main Building</option>
+                  <option value="Junior College">Junior College</option>
+                  <option value="Architecture Block">Architecture Block</option>
+                  <option value="Pharmacy Block">Pharmacy Block</option>
                   <option value="Cafeteria">Cafeteria</option>
                   <option value="Sports Complex">Sports Complex</option>
-                  <option value="Library">Library</option>
+                  <option value="Hostel Area">Hostel Area</option>
+                  <option value="Parking Lot">Parking Lot</option>
                   <option value="General">General</option>
                 </select>
                   <select

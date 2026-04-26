@@ -6,7 +6,7 @@ import {
   AlertTriangle, Wifi, TreePine, Flame, Bug, Wrench, Bolt,
   Building2, Droplets, Trash2, ShieldAlert, Brain, CheckCircle2
 } from 'lucide-react';
-import { analyzeLocally, analyzeWithOpenRouter, ALL_CATEGORIES, type AIAnalysis } from '../lib/aiAnalyzer';
+import { analyzeWithOpenRouter, ALL_CATEGORIES, type AIAnalysis } from '../lib/aiAnalyzer';
 
 const CATEGORY_META: Record<string, { icon: any; color: string; bg: string; desc: string }> = {
   'Cleaning':       { icon: Trash2,      color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20',  desc: 'Garbage, spills, dirty areas' },
@@ -21,7 +21,7 @@ const CATEGORY_META: Record<string, { icon: any; color: string; bg: string; desc
   'Other':          { icon: Wrench,      color: 'text-purple-600',  bg: 'bg-purple-50 dark:bg-purple-900/20',    desc: 'Any other campus issue' },
 };
 
-const REGIONS = ['Academic Block','Hostel Area','Cafeteria','Sports Complex','Library','Admin Block','Parking Lot','General'];
+const REGIONS = ['Main Building', 'Junior College', 'Architecture Block', 'Pharmacy Block', 'Cafeteria', 'Sports Complex', 'Hostel Area', 'Parking Lot', 'General'];
 const PRIORITY_COLORS = { LOW: 'bg-slate-400', MEDIUM: 'bg-amber-400', HIGH: 'bg-orange-500', CRITICAL: 'bg-red-600' };
 const PRIORITY_TEXT   = { LOW: 'text-slate-500', MEDIUM: 'text-amber-600', HIGH: 'text-orange-600', CRITICAL: 'text-red-600' };
 

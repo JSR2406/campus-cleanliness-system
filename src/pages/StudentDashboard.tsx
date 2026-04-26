@@ -111,7 +111,7 @@ export default function StudentDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             { label: 'Total Reports', value: complaints.length, icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-            { label: 'Resolved', value: complaints.filter(c => c.status === 'Completed').length, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+            { label: 'Resolved', value: complaints.filter(c => ['Completed', 'Closed'].includes(c.status)).length, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
             { label: 'Pending', value: complaints.filter(c => c.status === 'Pending').length, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
           ].map((stat, idx) => (
             <motion.div
@@ -240,7 +240,7 @@ export default function StudentDashboard() {
                                 </div>
                               )}
                               
-                              {c.status === 'Closed' && !c.Feedback ? (
+                              {c.status === 'Completed' && !c.Feedback ? (
                                 <button 
                                   onClick={(e) => {
                                     e.stopPropagation();
