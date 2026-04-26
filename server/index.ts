@@ -27,10 +27,11 @@ async function startServer() {
   app.use('/api/complaints', complaintRoutes);
   app.use('/api', analyzeRoutes);
 
-  // Sync Database
+  // Sync Database — alter:true in dev auto-migrates new model fields
   try {
-    await sequelize.sync({ alter: true });
-    console.log('Database synced successfully');
+    const isDev = process.env.NODE_ENV !== 'production';
+    await sequelize.sync({ alter: isDev });
+    console.log(`Database synced successfully (${isDev ? 'alter' : 'sync'} mode)`);
   } catch (error) {
     console.error('Database sync failed:', error);
   }

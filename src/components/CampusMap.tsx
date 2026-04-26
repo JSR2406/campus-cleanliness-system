@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, X } from 'lucide-react';
-import type { Complaint } from '../pages/AdminDashboard'; // I will define Complaint interface appropriately or use any if not exported. Wait, I should make sure I use a local interface to be safe.
+import type { Complaint } from '../pages/AdminDashboard';
 
 const REGIONS = [
   { id: 'Main Building', label: 'Main Building', x: 45, y: 30 },

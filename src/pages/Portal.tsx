@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Shield, Briefcase, Sparkles, ArrowRight, Leaf, CheckCircle, Clock, BarChart3, Moon, Sun } from 'lucide-react';
+import { User, Shield, Briefcase, Sparkles, ArrowRight, Leaf, CheckCircle, Clock, BarChart3, Moon, Sun, Brain, UserCircle, Timer } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 export default function Portal() {
@@ -10,35 +10,42 @@ export default function Portal() {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
+  const getDashboardPath = () => {
+    if (!user) return '/login';
+    if (user.role === 'admin') return '/admin-dashboard';
+    if (user.role === 'staff' || user.role === 'teacher') return '/staff-dashboard';
+    return '/student-dashboard';
+  };
+
   const sections = [
     {
       title: 'Student Portal',
-      description: 'Report cleanliness issues, track your reports, and provide feedback on resolved tasks.',
+      description: 'Report cleanliness issues, get AI-powered priority classification, track SLA timers, and rate resolved tasks.',
       icon: User,
       color: 'bg-blue-500',
       lightColor: 'bg-blue-50 dark:bg-blue-900/20',
       textColor: 'text-blue-600 dark:text-blue-400',
-      features: ['Report Issues', 'Track Status', 'Rate Service'],
+      features: ['AI Issue Analysis', 'SLA Countdown', 'Rate Service', 'Profile & Settings'],
       path: '/student-dashboard'
     },
     {
       title: 'Staff Portal',
-      description: 'Access assigned tasks, update work progress, and upload proof of completion.',
+      description: 'Access assigned tasks with SLA deadlines, update work progress, and upload photographic proof of completion.',
       icon: Briefcase,
       color: 'bg-emerald-500',
       lightColor: 'bg-emerald-50 dark:bg-emerald-900/20',
       textColor: 'text-emerald-600 dark:text-emerald-400',
-      features: ['View Assignments', 'Update Progress', 'Upload Proof'],
+      features: ['SLA-tracked Tasks', 'Update Progress', 'Upload Proof', 'Profile & Settings'],
       path: '/staff-dashboard'
     },
     {
       title: 'Admin Console',
-      description: 'Monitor campus-wide reports, manage staff assignments, and analyze performance metrics.',
+      description: 'Monitor campus-wide reports, assign staff, view live Campus Map, and read AI health score insights.',
       icon: Shield,
       color: 'bg-amber-500',
       lightColor: 'bg-amber-50 dark:bg-amber-900/20',
       textColor: 'text-amber-600 dark:text-amber-400',
-      features: ['Manage Reports', 'Assign Staff', 'View Analytics'],
+      features: ['Live Campus Map', 'AI Health Score', 'Staff Analytics', 'Profile & Settings'],
       path: '/admin-dashboard'
     }
   ];
@@ -85,7 +92,7 @@ export default function Portal() {
               <motion.button 
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => navigate(user ? '/' : '/login')}
+                onClick={() => navigate(getDashboardPath())}
                 className="btn-primary"
               >
                 {user ? 'Go to Dashboard' : 'Get Started'}
@@ -169,10 +176,10 @@ export default function Portal() {
           
           <div className="grid grid-cols-2 gap-6 w-full md:w-auto">
             {[
-              { icon: CheckCircle, label: 'Efficiency', color: 'text-emerald-500' },
-              { icon: Clock, label: 'Live Status', color: 'text-blue-500' },
+              { icon: Brain, label: 'AI Analysis', color: 'text-primary' },
+              { icon: Timer, label: 'SLA Tracking', color: 'text-blue-500' },
               { icon: BarChart3, label: 'Analytics', color: 'text-amber-500' },
-              { icon: Sparkles, label: 'Innovation', color: 'text-primary' }
+              { icon: UserCircle, label: 'Profiles', color: 'text-emerald-500' }
             ].map((item) => (
               <div key={item.label} className="bg-slate-50 dark:bg-slate-800 p-6 rounded-[2rem] flex flex-col items-center text-center gap-3 border border-slate-100 dark:border-slate-700 transition-colors duration-300">
                 <item.icon className={item.color} size={24} />
