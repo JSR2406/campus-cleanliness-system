@@ -1,7 +1,14 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, X } from 'lucide-react';
-import type { Complaint } from '../pages/AdminDashboard';
+
+// Self-contained type — no external dependency
+interface Complaint {
+  region?: string;
+  category?: string;
+  status?: string;
+  [key: string]: any;
+}
 
 const REGIONS = [
   { id: 'Main Building', label: 'Main Building', x: 45, y: 30 },
