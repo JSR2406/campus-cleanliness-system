@@ -11,6 +11,11 @@ cloudinary.config({
 
 export const createComplaint = async (req: AuthRequest, res: Response) => {
   try {
+    // Guest users cannot create complaints
+    if (req.user!.id === 999) {
+      return res.status(403).json({ message: 'Guest users cannot submit reports. Please create an account first.' });
+    }
+
     const {
       description, location,
       region = 'General', category = 'Other',
@@ -78,6 +83,10 @@ export const createComplaint = async (req: AuthRequest, res: Response) => {
 
 export const getMyComplaints = async (req: AuthRequest, res: Response) => {
   try {
+    // Return empty array for guest users — no DB lookup needed
+    if (req.user!.id === 999) {
+      return res.json([]);
+    }
     const complaints = await Complaint.findAll({
       where: { user_id: req.user!.id },
       include: [

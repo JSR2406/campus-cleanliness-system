@@ -8,6 +8,7 @@ import ComplaintForm from './pages/ComplaintForm';
 import AdminDashboard from './pages/AdminDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import AnalyticsPage from './pages/Analytics';
+import ProfilePage from './pages/ProfilePage';
 import Layout from './components/Layout';
 
 import { ThemeProvider } from './context/ThemeContext';
@@ -79,6 +80,12 @@ export default function App() {
             <Route path="/staff-dashboard" element={
               <ProtectedRoute roles={['staff', 'teacher']}>
                 <StaffDashboard />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/profile" element={
+              <ProtectedRoute roles={['student', 'staff', 'teacher', 'admin']}>
+                <ProfilePage />
               </ProtectedRoute>
             } />
             

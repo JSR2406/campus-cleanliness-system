@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-interface User {
+export interface User {
   id: number;
   name: string;
   email: string;
   role: 'student' | 'admin' | 'staff' | 'teacher';
+  avatar_url?: string | null;
+  bio?: string | null;
+  phone?: string | null;
 }
 
 interface AuthContextType {
@@ -12,7 +15,9 @@ interface AuthContextType {
   token: string | null;
   login: (token: string, user: User) => void;
   logout: () => void;
+  updateUser: (updated: Partial<User>) => void;
   loading: boolean;
+  isGuest: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,8 +31,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
     if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      try {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
@@ -46,8 +56,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem('user');
   };
 
+  const updateUser = (updated: Partial<User>) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const merged = { ...prev, ...updated };
+      localStorage.setItem('user', JSON.stringify(merged));
+      return merged;
+    });
+  };
+
+  const isGuest = token === 'guest-token';
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, updateUser, loading, isGuest }}>
       {children}
     </AuthContext.Provider>
   );
