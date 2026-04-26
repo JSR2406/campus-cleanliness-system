@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Users, BarChart3, LogOut, CheckCircle, Clock, AlertCircle, UserPlus, Loader2, MapPin, TrendingUp, Search, Shield, Download, Settings, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { CheckCircle, Clock, AlertCircle, UserPlus, Loader2, MapPin, TrendingUp, Search, Shield, Download, Settings, Plus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MOCK_COMPLAINTS, MOCK_STAFF } from '../lib/mockData';
+import CampusMap from '../components/CampusMap';
+import SLATimer from '../components/SLATimer';
+
+interface Toast { id: number; message: string; type: 'success' | 'error'; }
 
 export default function AdminDashboard() {
   const [complaints, setComplaints] = useState<any[]>([]);
@@ -11,8 +14,20 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedStaff, setSelectedStaff] = useState<any>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterRegion, setFilterRegion] = useState('All');
+  const [filterCategory, setFilterCategory] = useState('All');
   const [showAddStaff, setShowAddStaff] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [addingStaff, setAddingStaff] = useState(false);
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffEmail, setNewStaffEmail] = useState('');
   const { logout } = useAuth();
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -28,15 +43,13 @@ export default function AdminDashboard() {
       ]);
 
       if (complaintsRes.ok) {
-        const complaintsData = await complaintsRes.json();
-        setComplaints(complaintsData);
+        setComplaints(await complaintsRes.json());
       } else {
         setComplaints(MOCK_COMPLAINTS);
       }
-      
+
       if (staffRes.ok) {
-        const staffData = await staffRes.json();
-        setStaffList(staffData);
+        setStaffList(await staffRes.json());
       } else {
         setStaffList(MOCK_STAFF);
       }
@@ -51,7 +64,7 @@ export default function AdminDashboard() {
 
   const handleAssign = async (complaintId: number) => {
     const staffId = selectedStaff[complaintId];
-    if (!staffId) return alert('Please select a staff member');
+    if (!staffId) return showToast('Please select a staff member first', 'error');
 
     try {
       const token = localStorage.getItem('token');
@@ -66,18 +79,82 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         fetchData();
-        alert('Staff assigned successfully');
+        showToast('Staff assigned successfully ✓');
+      } else {
+        const err = await response.json();
+        showToast(err.message || 'Assignment failed', 'error');
       }
     } catch (error) {
-      console.error('Error assigning staff:', error);
+      showToast('Network error — could not assign', 'error');
+    }
+  };
+
+  const handleVerify = async (complaintId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/complaints/status/${complaintId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'Completed' })
+      });
+      if (response.ok) {
+        fetchData();
+        showToast('Complaint verified and marked as Completed ✓');
+      } else {
+        showToast('Verification failed', 'error');
+      }
+    } catch (error) {
+      showToast('Network error — could not verify', 'error');
     }
   };
 
   const handleQuickAction = (action: string) => {
     if (action === 'Add New Staff') {
       setShowAddStaff(true);
+    } else if (action === 'Export Reports') {
+      const csv = ['ID,Description,Location,Region,Category,Status,Reporter'].concat(
+        complaints.map(c => `${c.id},"${c.description}","${c.location}","${c.region}","${c.category}",${c.status},"${c.User?.name}"`)
+      ).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'campus-complaints.csv'; a.click();
+      URL.revokeObjectURL(url);
+      showToast('Reports exported as CSV ✓');
     } else {
-      alert(`${action} feature coming soon! (Mock)`);
+      showToast(`${action} — coming soon!`, 'error');
+    }
+  };
+
+  const handleAddStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStaffName || !newStaffEmail) return;
+    setAddingStaff(true);
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newStaffName,
+          email: newStaffEmail,
+          password: 'staff123',   // default password, staff should change on first login
+          role: 'staff'
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to create staff');
+      setShowAddStaff(false);
+      setNewStaffName('');
+      setNewStaffEmail('');
+      fetchData();
+      showToast(`Staff member "${newStaffName}" added ✓ (default password: staff123)`);
+    } catch (err: any) {
+      showToast(err.message || 'Could not add staff', 'error');
+    } finally {
+      setAddingStaff(false);
     }
   };
 
@@ -89,10 +166,13 @@ export default function AdminDashboard() {
     return { assigned, completed, efficiency };
   };
 
-  const filteredComplaints = complaints.filter(c => 
-    c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.location.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredComplaints = complaints.filter(c => {
+    const matchesSearch = c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          c.location.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRegion = filterRegion === 'All' || c.region === filterRegion;
+    const matchesCategory = filterCategory === 'All' || c.category === filterCategory;
+    return matchesSearch && matchesRegion && matchesCategory;
+  });
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -109,6 +189,27 @@ export default function AdminDashboard() {
 
   return (
     <div className="pb-24 lg:pb-12 selection:bg-primary/20 grid-bg min-h-screen transition-colors duration-300">
+      {/* Toast Notifications */}
+      <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, x: 60, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 60, scale: 0.9 }}
+              className={`pointer-events-auto flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-sm font-bold backdrop-blur-md border ${
+                toast.type === 'success'
+                  ? 'bg-emerald-500/90 text-white border-emerald-400'
+                  : 'bg-red-500/90 text-white border-red-400'
+              }`}
+            >
+              {toast.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+              {toast.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
       <main className="px-6 py-12 max-w-7xl mx-auto space-y-12">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
@@ -174,9 +275,44 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content Area */}
           <div className="lg:col-span-2 space-y-8">
+            <CampusMap
+              complaints={complaints}
+              onRegionClick={(regionId) => setFilterRegion(regionId || 'All')}
+              selectedRegion={filterRegion === 'All' ? null : filterRegion}
+            />
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <h2 className="text-2xl font-display font-bold text-ink tracking-tight">Recent Complaints</h2>
-              <div className="flex gap-3">
+              <div className="flex flex-col md:flex-row gap-3">
+                <select
+                  value={filterRegion}
+                  onChange={(e) => setFilterRegion(e.target.value)}
+                  className="px-4 py-2.5 bg-card-bg border border-slate-100 dark:border-slate-800 rounded-xl text-xs font-medium outline-none transition-all shadow-sm"
+                >
+                  <option value="All">All Regions</option>
+                  <option value="Academic Block">Academic Block</option>
+                  <option value="Hostel Area">Hostel Area</option>
+                  <option value="Cafeteria">Cafeteria</option>
+                  <option value="Sports Complex">Sports Complex</option>
+                  <option value="Library">Library</option>
+                  <option value="General">General</option>
+                </select>
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="px-4 py-2.5 bg-card-bg border border-slate-100 dark:border-slate-800 rounded-xl text-xs font-medium outline-none transition-all shadow-sm"
+                  >
+                    <option value="All">All Categories</option>
+                    <option value="Cleaning">🧹 Cleaning</option>
+                    <option value="Electrical">⚡ Electrical</option>
+                    <option value="Structural">🏗️ Structural</option>
+                    <option value="Plumbing">💧 Plumbing</option>
+                    <option value="IT/Network">📡 IT / Network</option>
+                    <option value="Safety Hazard">⚠️ Safety Hazard</option>
+                    <option value="Pest Control">🐛 Pest Control</option>
+                    <option value="Gardening">🌿 Gardening</option>
+                    <option value="Fire Safety">🔥 Fire Safety</option>
+                    <option value="Other">🔧 Other</option>
+                  </select>
                 <div className="relative group w-full md:w-auto">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={16} />
                   <input 
@@ -236,40 +372,67 @@ export default function AdminDashboard() {
                                   <div className="flex items-center gap-5">
                                     <div className="relative flex-shrink-0">
                                       {c.image_url ? (
-                                        <img 
-                                          src={c.image_url} 
-                                          className="w-12 h-12 rounded-xl object-cover shadow-sm" 
-                                          referrerPolicy="no-referrer" 
-                                          alt="Report"
-                                        />
+                                        <img src={c.image_url} className="w-12 h-12 rounded-xl object-cover shadow-sm" referrerPolicy="no-referrer" alt="Report" />
                                       ) : (
                                         <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-700 transition-colors">
                                           <AlertCircle size={20} />
                                         </div>
                                       )}
+                                      {c.is_sos && (
+                                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-600 rounded-full animate-ping" />
+                                      )}
                                     </div>
                                     <div>
-                                      <p className="font-bold text-ink text-sm mb-0.5 group-hover:text-primary transition-colors">{c.description}</p>
+                                      <div className="flex items-center gap-2 mb-0.5">
+                                        <p className="font-bold text-ink text-sm group-hover:text-primary transition-colors">{c.description}</p>
+                                        {c.is_sos && <span className="px-1.5 py-0.5 bg-red-600 text-white text-[8px] font-black uppercase rounded-md">SOS</span>}
+                                      </div>
                                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">By <span className="text-primary">{c.User?.name}</span></p>
+                                      {c.ai_suggested_action && (
+                                        <p className="text-[9px] text-indigo-500 font-medium mt-0.5 max-w-xs truncate">🤖 {c.ai_suggested_action}</p>
+                                      )}
                                     </div>
                                   </div>
                                 </td>
                                 <td className="px-8 py-6">
-                                  <div className="flex items-center gap-2 text-slate-500">
-                                    <MapPin size={14} className="text-primary/60" />
-                                    <span className="text-xs font-bold uppercase tracking-widest">{c.location}</span>
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2 text-slate-500">
+                                      <MapPin size={14} className="text-primary/60" />
+                                      <span className="text-xs font-bold uppercase tracking-widest">{c.location}</span>
+                                    </div>
+                                    {c.region && (
+                                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                        {c.region} • {c.category}
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="px-8 py-6">
-                                  <span className={`px-3 py-1 rounded-lg text-[10px] font-bold tracking-widest uppercase ${
-                                    c.status === 'Pending' ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' :
-                                    c.status === 'Assigned' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' :
-                                    c.status === 'In Progress' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600' :
-                                    c.status === 'Completed' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' :
-                                    'bg-slate-50 dark:bg-slate-800 text-slate-400'
-                                  }`}>
-                                    {c.status}
-                                  </span>
+                                  <div className="flex flex-col gap-2">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className={`px-3 py-1 rounded-lg text-[10px] font-bold tracking-widest uppercase w-fit ${
+                                        c.status === 'Pending'     ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' :
+                                        c.status === 'Assigned'    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' :
+                                        c.status === 'In Progress' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600' :
+                                        c.status === 'Resolved'    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600' :
+                                        c.status === 'Completed'   ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' :
+                                        'bg-slate-50 dark:bg-slate-800 text-slate-400'
+                                      }`}>{c.status}</span>
+                                      <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest w-fit ${
+                                        c.priority === 'CRITICAL' ? 'bg-red-600 text-white' :
+                                        c.priority === 'HIGH'     ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-600' :
+                                        c.priority === 'MEDIUM'   ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-600' :
+                                        'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                      }`}>{c.priority}</span>
+                                    </div>
+                                    <SLATimer
+                                      createdAt={c.created_at}
+                                      suggestedSLA={c.priority === 'CRITICAL' ? '2 hours' : c.priority === 'HIGH' ? '12 hours' : c.priority === 'MEDIUM' ? '24 hours' : '48 hours'}
+                                      status={c.status}
+                                      resolvedAt={c.completed_at || c.Assignment?.completed_at}
+                                      compact
+                                    />
+                                  </div>
                                 </td>
                                 <td className="px-8 py-6 text-right">
                                   {c.status === 'Pending' ? (
@@ -289,14 +452,29 @@ export default function AdminDashboard() {
                                         <UserPlus size={18} />
                                       </button>
                                     </div>
+                                  ) : c.status === 'Resolved' ? (
+                                    <div className="flex flex-col items-end gap-2">
+                                      <div className="flex items-center gap-2.5 mb-1">
+                                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-[10px] font-bold text-primary">
+                                          {c.Assignment?.staff?.name[0] || '?'}
+                                        </div>
+                                        <span className="text-[10px] font-bold text-ink uppercase tracking-widest">{c.Assignment?.staff?.name || 'Staff'}</span>
+                                      </div>
+                                      <button 
+                                        onClick={() => handleVerify(c.id)}
+                                        className="bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-600 transition-colors shadow-sm"
+                                      >
+                                        Verify & Complete
+                                      </button>
+                                    </div>
                                   ) : (
                                     <div className="flex flex-col items-end">
                                       <span className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1.5">Assigned To</span>
                                       <div className="flex items-center gap-2.5">
                                         <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-[10px] font-bold text-primary">
-                                          {c.Assignment?.staff?.name[0]}
+                                          {c.Assignment?.staff?.name[0] || '?'}
                                         </div>
-                                        <span className="text-[10px] font-bold text-ink uppercase tracking-widest">{c.Assignment?.staff?.name}</span>
+                                        <span className="text-[10px] font-bold text-ink uppercase tracking-widest">{c.Assignment?.staff?.name || 'Staff'}</span>
                                       </div>
                                     </div>
                                   )}
@@ -369,12 +547,24 @@ export default function AdminDashboard() {
                                 <UserPlus size={16} />
                               </button>
                             </div>
+                          ) : c.status === 'Resolved' ? (
+                            <div className="flex items-center gap-3">
+                              <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-[10px] font-bold text-primary">
+                                {c.Assignment?.staff?.name[0] || '?'}
+                              </div>
+                              <button 
+                                onClick={() => handleVerify(c.id)}
+                                className="bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-600 transition-colors"
+                              >
+                                Verify
+                              </button>
+                            </div>
                           ) : (
                             <div className="flex items-center gap-3">
                               <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-[10px] font-bold text-primary">
-                                {c.Assignment?.staff?.name[0]}
+                                {c.Assignment?.staff?.name[0] || '?'}
                               </div>
-                              <span className="text-[10px] font-bold text-ink uppercase tracking-widest">{c.Assignment?.staff?.name}</span>
+                              <span className="text-[10px] font-bold text-ink uppercase tracking-widest">{c.Assignment?.staff?.name || 'Staff'}</span>
                             </div>
                           )}
                         </div>
@@ -460,64 +650,69 @@ export default function AdminDashboard() {
         </div>
       </main>
 
-      {/* Add Staff Modal Mock */}
+      {/* Add Staff Modal — Real API */}
       <AnimatePresence>
         {showAddStaff && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowAddStaff(false)}
               className="absolute inset-0 bg-ink/60 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="relative w-full max-w-md bg-card-bg rounded-[2.5rem] p-10 shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden"
             >
-              <div className="absolute top-0 right-0 p-8">
-                <button 
-                  onClick={() => setShowAddStaff(false)}
-                  className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-ink transition-colors"
-                >
-                  <Plus className="rotate-45" size={20} />
-                </button>
-              </div>
+              <button
+                onClick={() => setShowAddStaff(false)}
+                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-ink transition-colors"
+              >
+                <X size={18} />
+              </button>
 
               <div className="mb-8">
                 <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6">
                   <UserPlus size={32} />
                 </div>
                 <h2 className="text-3xl font-display font-bold text-ink tracking-tight mb-2">Add New Staff</h2>
-                <p className="text-slate-400 font-medium">Onboard a new member to the maintenance team.</p>
+                <p className="text-slate-400 font-medium text-sm">Onboard a new member to the maintenance team. Default password: <code className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-xs">staff123</code></p>
               </div>
 
-              <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); setShowAddStaff(false); alert('Staff added successfully (Mock)'); }}>
+              <form className="space-y-5" onSubmit={handleAddStaff} autoComplete="off">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
+                    value={newStaffName}
+                    onChange={(e) => setNewStaffName(e.target.value)}
                     placeholder="e.g. Louis Litt"
+                    autoComplete="off"
                     className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-900 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all text-ink"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     required
+                    value={newStaffEmail}
+                    onChange={(e) => setNewStaffEmail(e.target.value)}
                     placeholder="louis@campus.com"
+                    autoComplete="off"
                     className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-900 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all text-ink"
                   />
                 </div>
-                <button 
+                <button
                   type="submit"
-                  className="w-full py-5 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all transform hover:-translate-y-1"
+                  disabled={addingStaff}
+                  className="w-full py-5 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-60"
                 >
-                  Create Account
+                  {addingStaff ? <><Loader2 size={20} className="animate-spin" /> Creating...</> : 'Create Staff Account'}
                 </button>
               </form>
             </motion.div>

@@ -170,7 +170,7 @@ export default function Portal() {
           <div className="grid grid-cols-2 gap-6 w-full md:w-auto">
             {[
               { icon: CheckCircle, label: 'Efficiency', color: 'text-emerald-500' },
-              { icon: Clock, label: 'Real-time', color: 'text-blue-500' },
+              { icon: Clock, label: 'Live Status', color: 'text-blue-500' },
               { icon: BarChart3, label: 'Analytics', color: 'text-amber-500' },
               { icon: Sparkles, label: 'Innovation', color: 'text-primary' }
             ].map((item) => (

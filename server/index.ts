@@ -1,52 +1,53 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createServer as createViteServer } from 'vite';
 import { sequelize } from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
+import analyzeRoutes from './routes/analyzeRoutes.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 
-  app.use(cors());
+  app.use(cors({ origin: '*' }));
   app.use(express.json());
   app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+  app.use('/api', apiLimiter);
 
   // API Routes
   app.use('/api/auth', authRoutes);
   app.use('/api/complaints', complaintRoutes);
+  app.use('/api', analyzeRoutes);
 
   // Sync Database
   try {
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
     console.log('Database synced successfully');
   } catch (error) {
     console.error('Database sync failed:', error);
   }
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
+  // Production: also serve the built frontend on same port
+  if (process.env.NODE_ENV === 'production') {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      if (!req.path.startsWith('/api')) {
+        res.sendFile(path.join(distPath, 'index.html'));
+      }
     });
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`API Server running on http://localhost:${PORT}`);
   });
 }
 

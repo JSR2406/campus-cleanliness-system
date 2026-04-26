@@ -17,30 +17,23 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode, roles?
 
   if (loading) return null;
 
-  const activeUser = user || {
-    id: 999,
-    name: "Demo User",
-    email: "demo@example.com",
-    role: roles ? roles[0] : 'student'
-  } as any;
+  // Not logged in → go to login
+  if (!user) return <Navigate to="/login" replace />;
 
-  return (
-    <AuthContext.Provider value={{
-      user: activeUser,
-      token: 'demo-token',
-      login: () => {},
-      logout: () => {},
-      loading: false
-    }}>
-      <Layout>{children}</Layout>
-    </AuthContext.Provider>
-  );
+  // Wrong role → redirect to appropriate dashboard
+  if (roles && !roles.includes(user.role)) {
+    if (user.role === 'admin') return <Navigate to="/admin-dashboard" replace />;
+    if (user.role === 'staff') return <Navigate to="/staff-dashboard" replace />;
+    return <Navigate to="/student-dashboard" replace />;
+  }
+
+  return <Layout>{children}</Layout>;
 };
 
 const RootRedirect = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (!user) return <Navigate to="/student-dashboard" />;
+  if (!user) return <Navigate to="/login" />;
   
   switch (user.role) {
     case 'admin': return <Navigate to="/admin-dashboard" />;

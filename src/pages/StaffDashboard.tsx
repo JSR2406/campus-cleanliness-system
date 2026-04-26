@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { LogOut, Camera, CheckCircle, Loader2, MapPin, ClipboardList, Sparkles, ArrowRight, AlertCircle, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MOCK_COMPLAINTS } from '../lib/mockData';
+import SLATimer from '../components/SLATimer';
 
 export default function StaffDashboard() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -222,7 +223,13 @@ export default function StaffDashboard() {
                         <MapPin size={12} className="text-primary" />
                         {task.location}
                       </div>
-                      <h3 className="text-xl font-bold text-ink group-hover:text-primary transition-colors leading-tight">{task.description}</h3>
+                      <h3 className="text-xl font-bold text-ink group-hover:text-primary transition-colors leading-tight mb-4">{task.description}</h3>
+                      <SLATimer
+                        createdAt={task.created_at}
+                        suggestedSLA={task.priority === 'CRITICAL' ? '2 hours' : task.priority === 'HIGH' ? '12 hours' : task.priority === 'MEDIUM' ? '24 hours' : '48 hours'}
+                        status={task.status}
+                        resolvedAt={task.completed_at || task.Assignment?.completed_at}
+                      />
                     </div>
 
                     <div className="mt-auto pt-8 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between transition-colors">
@@ -250,10 +257,17 @@ export default function StaffDashboard() {
                           </label>
                         )}
 
+                        {task.status === 'Resolved' && (
+                          <div className="flex items-center gap-2 text-purple-600 font-bold text-[10px] bg-purple-50 dark:bg-purple-900/20 px-4 py-2 rounded-xl border border-purple-100 dark:border-purple-800 uppercase tracking-widest transition-colors">
+                            <Sparkles size={16} />
+                            Pending Verification
+                          </div>
+                        )}
+
                         {task.status === 'Completed' && (
                           <div className="flex items-center gap-2 text-emerald-600 font-bold text-[10px] bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-xl border border-emerald-100 dark:border-emerald-800 uppercase tracking-widest transition-colors">
                             <CheckCircle size={16} />
-                            Resolved
+                            Verified & Closed
                           </div>
                         )}
                       </div>

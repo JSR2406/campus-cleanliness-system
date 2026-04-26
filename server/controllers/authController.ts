@@ -59,3 +59,32 @@ export const login = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const googleAuth = async (req: Request, res: Response) => {
+  try {
+    const { name, email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    // Find or create user from Google info
+    let user = await User.findOne({ where: { email } });
+    if (!user) {
+      const placeholder = await bcrypt.hash(Math.random().toString(36), 10);
+      user = await User.create({
+        name: name || email.split('@')[0],
+        email,
+        password: placeholder,
+        role: 'student'
+      });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};

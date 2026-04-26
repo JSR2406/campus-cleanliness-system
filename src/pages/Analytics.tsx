@@ -1,20 +1,54 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { ArrowLeft, TrendingUp, CheckCircle, Clock, AlertCircle, MapPin, Sparkles, Activity } from 'lucide-react';
+import { ArrowLeft, TrendingUp, CheckCircle, Clock, AlertCircle, MapPin, Sparkles, Activity, Brain, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { MOCK_ANALYTICS } from '../lib/mockData';
+import { generateCampusHealthInsight } from '../lib/aiAnalyzer';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#6366f1', '#ef4444'];
 
+const MOCK_ANALYTICS_FALLBACK = {
+  total: 0, completed: 0, avgSLA_hours: 0, avgRating: 0,
+  byStatus: {}, byLocation: {}, byRegion: {}, byCategory: {},
+  regionData: [], categoryData: [], heatmapData: [], totalFeedback: 0
+};
+
 export default function AnalyticsPage() {
-  const [data, setData] = useState<any>(MOCK_ANALYTICS);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(MOCK_ANALYTICS_FALLBACK);
+  const [loading, setLoading] = useState(true);
+  const [health, setHealth] = useState<any>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Already initialized with mock data, but we can refresh it if needed
-    setLoading(false);
+    const fetchAnalytics = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/complaints/analytics', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setData(json);
+          // Generate AI health score after data loads
+          setHealthLoading(true);
+          const h = await generateCampusHealthInsight(
+            { total: json.total, completed: json.completed, byCategory: json.byCategory || {}, byRegion: json.byRegion || {} }
+          );
+          setHealth(h);
+          setHealthLoading(false);
+        } else {
+          setData(MOCK_ANALYTICS);
+        }
+      } catch {
+        setData(MOCK_ANALYTICS);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAnalytics();
   }, []);
 
   if (loading) return (
@@ -26,12 +60,15 @@ export default function AnalyticsPage() {
       >
         <Activity className="text-primary" size={40} />
       </motion.div>
-      <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Processing Data...</p>
+      <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Loading Analytics...</p>
     </div>
   );
 
-  const statusData = Object.keys(data.byStatus).map(key => ({ name: key, value: data.byStatus[key] }));
-  const locationData = Object.keys(data.byLocation).map(key => ({ name: key, count: data.byLocation[key] }));
+  const statusData = Object.keys(data.byStatus || {}).map(key => ({ name: key, value: data.byStatus[key] }));
+  const locationData = Object.keys(data.byLocation || {}).map(key => ({ name: key, count: data.byLocation[key] }));
+  const regionData: any[] = data.regionData || [];
+  const categoryData: any[] = data.categoryData || [];
+
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -73,7 +110,7 @@ export default function AnalyticsPage() {
                 <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Intelligence Hub</span>
               </div>
               <h1 className="text-4xl font-black text-ink tracking-tight">System Analytics</h1>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Real-time performance monitoring</p>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Live status performance monitoring</p>
             </div>
           </div>
           <motion.div 
@@ -89,6 +126,73 @@ export default function AnalyticsPage() {
             </div>
           </motion.div>
         </motion.header>
+
+        {/* AI Campus Health Score Panel */}
+        <motion.div variants={itemVariants} className="mb-10">
+          <div className={`rounded-[2rem] p-6 md:p-8 border transition-all ${
+            health?.grade === 'A+' || health?.grade === 'A' ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800' :
+            health?.grade === 'B' ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800' :
+            health?.grade === 'C' ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800' :
+            'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+          } shadow-xl`}>
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              {/* Score Circle */}
+              <div className="relative w-28 h-28 flex-shrink-0 mx-auto md:mx-0">
+                <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-slate-100 dark:text-slate-800" />
+                  <motion.circle cx="50" cy="50" r="42" fill="none" strokeWidth="8"
+                    stroke={health?.grade?.startsWith('A') ? '#10b981' : health?.grade === 'B' ? '#3b82f6' : health?.grade === 'C' ? '#f59e0b' : '#ef4444'}
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 42}`}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
+                    animate={{ strokeDashoffset: health ? 2 * Math.PI * 42 * (1 - (health.score / 100)) : 2 * Math.PI * 42 }}
+                    transition={{ duration: 1.5, ease: 'easeOut' }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  {healthLoading
+                    ? <Brain size={24} className="text-primary animate-pulse" />
+                    : <>
+                        <span className="text-2xl font-black text-ink">{health?.score ?? '--'}</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">/ 100</span>
+                      </>
+                  }
+                </div>
+              </div>
+
+              {/* Info */}
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <Brain size={16} className="text-primary" />
+                  <span className="text-[10px] font-black text-primary uppercase tracking-widest">AI Campus Health Score</span>
+                  {health && <span className={`px-2 py-0.5 rounded-lg text-sm font-black ${
+                    health.grade?.startsWith('A') ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' :
+                    health.grade === 'B' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' :
+                    health.grade === 'C' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' :
+                    'bg-red-100 dark:bg-red-900/30 text-red-600'
+                  }`}>Grade {health.grade}</span>}
+                  <span className="ml-auto text-[9px] text-slate-400 font-bold uppercase">Powered by AI Engine</span>
+                </div>
+                {healthLoading
+                  ? <div className="space-y-2">{[80,60,90].map(w => <div key={w} className="h-3 bg-primary/10 rounded-full animate-pulse" style={{width:`${w}%`}} />)}</div>
+                  : health && <>
+                      <p className="text-sm text-slate-600 dark:text-slate-300 font-medium mb-3">{health.summary}</p>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-white/60 dark:bg-slate-800/60 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+                          <ShieldAlert size={14} className="text-orange-500 flex-shrink-0" />
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{health.topRisk}</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-white/60 dark:bg-slate-800/60 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+                          <TrendingUp size={14} className="text-primary flex-shrink-0" />
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{health.recommendation}</span>
+                        </div>
+                      </div>
+                    </>
+                }
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
         {/* Top Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-12">
@@ -221,7 +325,70 @@ export default function AnalyticsPage() {
             </motion.div>
           </motion.div>
         </div>
+
+        {/* Region & Category Breakdown */}
+        {(regionData.length > 0 || categoryData.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10 mt-10">
+            {regionData.length > 0 && (
+              <motion.div variants={itemVariants} className="card p-8 md:p-10 shadow-2xl shadow-slate-200/50 dark:shadow-none">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h3 className="text-xl font-black text-ink tracking-tight">Reports by Region</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Campus zone breakdown</p>
+                  </div>
+                  <MapPin size={20} className="text-primary" />
+                </div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={regionData}>
+                      <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--slate-200)" opacity={0.1} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--slate-400)', fontWeight: 700 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--slate-400)', fontWeight: 700 }} />
+                      <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: 'var(--card-bg)', color: 'var(--ink)', boxShadow: '0 20px 40px -12px rgb(0 0 0 / 0.15)', padding: '12px' }} itemStyle={{ color: 'var(--ink)' }} />
+                      <Bar dataKey="value" fill="#6366f1" radius={[8, 8, 0, 0]} barSize={36} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </motion.div>
+            )}
+            {categoryData.length > 0 && (
+              <motion.div variants={itemVariants} className="card p-8 md:p-10 shadow-2xl shadow-slate-200/50 dark:shadow-none">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h3 className="text-xl font-black text-ink tracking-tight">Reports by Category</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Issue type distribution</p>
+                  </div>
+                  <AlertCircle size={20} className="text-amber-500" />
+                </div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={8} dataKey="value" stroke="none">
+                        {categoryData.map((_, index) => (
+                          <Cell key={`cat-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: 'var(--card-bg)', color: 'var(--ink)', boxShadow: '0 20px 40px -12px rgb(0 0 0 / 0.15)', padding: '12px' }} itemStyle={{ color: 'var(--ink)' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-6">
+                  {categoryData.map((cat, i) => (
+                    <div key={cat.name} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100/50 dark:border-slate-800/50">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <div>
+                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{cat.name}</p>
+                        <p className="text-sm font-black text-ink">{cat.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </div>
+        )}
       </motion.div>
     </div>
   );
 }
+

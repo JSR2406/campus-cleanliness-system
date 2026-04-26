@@ -29,9 +29,9 @@ router.get('/analytics', verifyToken, authorize(['admin']), getAnalytics);
 router.get('/staff-list', verifyToken, authorize(['admin']), getStaffList);
 
 // Staff routes
-router.get('/staff-tasks', verifyToken, authorize(['staff']), getStaffTasks);
-router.post('/upload-proof', verifyToken, authorize(['staff']), upload.single('image'), uploadProof);
-router.patch('/status/:id', verifyToken, authorize(['staff', 'admin']), updateStatus);
+router.get('/staff-tasks', verifyToken, authorize(['staff', 'teacher']), getStaffTasks);
+router.post('/upload-proof', verifyToken, authorize(['staff', 'teacher']), upload.single('image'), uploadProof);
+router.patch('/status/:id', verifyToken, authorize(['staff', 'teacher', 'admin']), updateStatus);
 
 // Feedback routes
 router.post('/feedback', verifyToken, authorize(['student']), submitFeedback);

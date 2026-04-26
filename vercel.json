@@ -13,12 +13,19 @@
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/:path*",
+      "destination": "/server/index.ts"
+    },
+    {
+      "source": "/uploads/:path*",
       "destination": "/server/index.ts"
     },
     {
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }

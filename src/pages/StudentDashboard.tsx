@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import FeedbackModal from '../components/FeedbackModal';
 import { MOCK_COMPLAINTS } from '../lib/mockData';
+import SLATimer from '../components/SLATimer';
 
 export default function StudentDashboard() {
   const [complaints, setComplaints] = useState<any[]>([]);
@@ -209,9 +210,18 @@ export default function StudentDashboard() {
                           <div className="flex-1 flex flex-col justify-between">
                             <div>
                               <div className="flex justify-between items-start mb-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                  {new Date(c.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
-                                </span>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    {new Date(c.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                                  </span>
+                                  <SLATimer
+                                    createdAt={c.created_at}
+                                    suggestedSLA={c.priority === 'CRITICAL' ? '2 hours' : c.priority === 'HIGH' ? '12 hours' : c.priority === 'MEDIUM' ? '24 hours' : '48 hours'}
+                                    status={c.status}
+                                    resolvedAt={c.completed_at || c.Assignment?.completed_at}
+                                    compact
+                                  />
+                                </div>
                                 <div className={`w-2 h-2 rounded-full ${c.priority === 'HIGH' ? 'bg-red-500' : c.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-blue-500'} shadow-lg`} />
                               </div>
                               <h3 className="text-xl font-bold text-ink group-hover:text-primary transition-colors mb-2">{c.description}</h3>
